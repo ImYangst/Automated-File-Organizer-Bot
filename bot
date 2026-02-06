@@ -1,0 +1,82 @@
+import os
+import shutil 
+import time
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+import logging as log
+
+# Configuração dos caminhos: Onde monitorar e para onde mover
+downloads_path = "path" # Caminho da pasta que será monitorada
+destinos = {
+    ".pdf": "path",
+    ".jpg": "path",
+    ".png": "path",
+    ".mp4": "path",
+    ".epub": "path",
+    ".zip": "path",
+    ".iso": "path",
+    ".jpeg": "path",
+    ".webp": "path",
+    ".rar": "path",
+    ".7z": "path",
+    ".gz": "path",
+    ".bz2": "path",
+    ".tar": "path",
+    ".gif": "path",
+    ".webm": "path",
+}
+
+# Classe que define o comportamento quando algo muda na pasta
+class OrganizadorHandler(FileSystemEventHandler):
+    # O método on_modified é disparado sempre que um arquivo é criado ou alterado
+    def on_modified(self, event):
+        # Varre todos os arquivos na pasta de downloads
+        for filename in os.listdir(downloads_path):
+            filepath = os.path.join(downloads_path, filename)
+            
+            # Ignora se for uma pasta (o script foca em arquivos individuais)
+            if os.path.isdir(filepath):
+                continue
+
+            # Separa o nome da extensão para identificar o tipo de arquivo
+            nome, extensao = os.path.splitext(filename)
+            extensao = extensao.lower()
+
+            # Verifica se a extensão do arquivo está mapeada no dicionário 'destinos'
+            if extensao in destinos:
+                pasta_destino = os.path.join(downloads_path, destinos[extensao])
+
+                # Cria a pasta de destino caso ela ainda não exista
+                if not os.path.exists(pasta_destino):
+                    os.makedirs(pasta_destino)
+
+                # Move o arquivo para a pasta correspondente
+                shutil.move(filepath, os.path.join(pasta_destino, filename))
+                
+                # Configura o sistema de logs para registrar a movimentação
+                log.basicConfig(
+                    filename='app.log',         
+                    filemode='a',              
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    level=log.DEBUG       
+                )
+                log.info(f"Movido: {filename} -> {destinos[extensao]}")
+
+# Bloco principal para iniciar o monitoramento
+if __name__ == "__main__":
+    event_handler = OrganizadorHandler()
+    observer = Observer()
+    # Agenda o monitoramento na pasta definida, sem entrar em subpastas (recursive=False)
+    observer.schedule(event_handler, downloads_path, recursive=False)
+
+    print(f"Monitorando: {downloads_path}")
+    observer.start() # Inicia o observador
+    
+    try:
+        # Mantém o script rodando continuamente
+        while True:
+            time.sleep(10)
+    except KeyboardInterrupt:
+        # Para o script de forma segura ao pressionar Ctrl+C
+        observer.stop()
+    observer.join()
